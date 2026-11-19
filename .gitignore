@@ -1,0 +1,18 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# the agent's scratch folder
+workspace/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
