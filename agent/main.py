@@ -46,7 +46,7 @@ def main() -> None:
         on_event=show,
     )
     print(f"{GREEN}Mini Coding Agent{RESET} · {cfg.provider}/{cfg.model} · workspace: {args.workspace}")
-    print("Type a task. Commands: /reset (clear memory), /exit\n")
+    print("Type a task. Commands: /undo (revert last task's file changes), /reset (clear memory), /exit\n")
 
     while True:
         try:
@@ -60,6 +60,16 @@ def main() -> None:
         if task == "/reset":
             agent.reset()
             print("Memory cleared.")
+            continue
+        if task == "/undo":
+            restored = agent.toolbox.undo()
+            if restored:
+                print("Undid changes to: " + ", ".join(restored))
+                # Tell the model too, so it doesn't assume its old edits are still there.
+                agent.messages.append({"role": "user", "content":
+                    "[I used /undo: your file changes from the last task were reverted.]"})
+            else:
+                print("Nothing to undo.")
             continue
         try:
             print(f"\n{GREEN}agent ›{RESET} {agent.ask(task)}\n")

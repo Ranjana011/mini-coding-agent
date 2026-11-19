@@ -82,6 +82,7 @@ Inside the chat:
 | Command | Action |
 |---|---|
 | *any text* | Give the agent a task |
+| `/undo` | Put back the files the last task wrote or edited |
 | `/reset` | Clear the conversation memory |
 | `/exit` | Quit |
 

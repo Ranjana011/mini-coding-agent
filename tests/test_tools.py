@@ -31,3 +31,19 @@ def test_unknown_tool_and_bad_args(tmp_path):
     tb = Toolbox(tmp_path)
     assert "unknown tool" in tb.run("delete_everything", {})
     assert "bad arguments" in tb.run("read_file", {})
+
+
+def test_undo_restores_files_from_before_the_task(tmp_path):
+    tb = Toolbox(tmp_path)
+    (tmp_path / "old.py").write_text("x = 1\n")
+
+    tb.start_task()
+    tb.run("edit_file", {"path": "old.py", "old": "1", "new": "2"})
+    tb.run("edit_file", {"path": "old.py", "old": "2", "new": "3"})  # edited twice
+    tb.run("write_file", {"path": "new.py", "content": "print('new')\n"})
+
+    assert tb.undo() == ["new.py", "old.py"]
+    assert (tmp_path / "old.py").read_text() == "x = 1\n"  # back to before the task
+    assert not (tmp_path / "new.py").exists()               # created file removed
+    assert tb.undo() == []                                  # nothing left to undo
+    assert "unknown tool" in tb.run("undo", {})             # the model can't call it

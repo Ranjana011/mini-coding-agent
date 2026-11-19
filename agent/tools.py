@@ -27,6 +27,32 @@ class Toolbox:
         self.root.mkdir(parents=True, exist_ok=True)
         self.confirm = confirm or (lambda _cmd: False)  # deny shell by default
         self.shell_timeout = shell_timeout
+        # Backups for /undo: file path -> its bytes before the current task
+        # changed it (None = the file did not exist yet).
+        self._backups: dict[Path, bytes | None] = {}
+
+    # ---------- undo ----------
+    def start_task(self) -> None:
+        """Forget old backups; called at the start of every new task."""
+        self._backups = {}
+
+    def _backup(self, p: Path) -> None:
+        # Only the first change in a task is saved, so undo goes back to the
+        # version from *before* the task, not just before the last edit.
+        if p not in self._backups:
+            self._backups[p] = p.read_bytes() if p.exists() else None
+
+    def undo(self) -> list[str]:
+        """Put back every file the last task wrote or edited. Returns their paths."""
+        restored = []
+        for p, old in self._backups.items():
+            if old is None:
+                p.unlink(missing_ok=True)  # the task created it, so remove it
+            else:
+                p.write_bytes(old)
+            restored.append(p.relative_to(self.root).as_posix())
+        self._backups = {}
+        return sorted(restored)
 
     # ---------- safety ----------
     def _safe_path(self, path: str) -> Path:
@@ -59,6 +85,7 @@ class Toolbox:
 
     def write_file(self, path: str, content: str) -> str:
         p = self._safe_path(path)
+        self._backup(p)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
         return f"Wrote {len(content)} chars to {path}"
@@ -73,6 +100,7 @@ class Toolbox:
             raise ToolError("`old` text not found. Read the file again and copy it exactly.")
         if count > 1:
             raise ToolError(f"`old` text appears {count} times; include more context so it is unique.")
+        self._backup(p)
         p.write_text(text.replace(old, new, 1), encoding="utf-8")
         return f"Edited {path}"
 
@@ -104,9 +132,11 @@ class Toolbox:
 
     # ---------- dispatcher ----------
     def run(self, name: str, args: dict) -> str:
-        fn = getattr(self, name, None)
-        if name.startswith("_") or name == "run" or not callable(fn):
+        # Only the tools listed in TOOL_SCHEMAS may be called by the model, so it
+        # can't call helper methods like undo() or start_task().
+        if name not in TOOL_NAMES:
             return f"Error: unknown tool '{name}'."
+        fn = getattr(self, name)
         try:
             return fn(**args)
         except ToolError as e:
@@ -143,3 +173,5 @@ TOOL_SCHEMAS = [
         "The user must approve each command.",
         {"command": _S}, ["command"]),
 ]
+
+TOOL_NAMES = {s["function"]["name"] for s in TOOL_SCHEMAS}

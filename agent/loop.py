@@ -23,6 +23,7 @@ class Agent:
 
     def ask(self, task: str) -> str:
         self.messages.append({"role": "user", "content": task})
+        self.toolbox.start_task()  # new task -> fresh backups for /undo
 
         for step in range(1, self.max_steps + 1):
             reply = self.llm.chat(self.messages, TOOL_SCHEMAS)
