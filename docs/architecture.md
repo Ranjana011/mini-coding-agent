@@ -48,4 +48,3 @@
 - Conversation history grows without limit (could summarise old turns).
 - `search` is plain substring search, not regex or semantic search.
 - No git integration, no undo for file edits.
-- Single agent; Project 2 will split work across multiple specialised agents.
